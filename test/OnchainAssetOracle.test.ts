@@ -1,30 +1,45 @@
-// SPDX-License-Identifier: MIT
-import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import { ethers } from "hardhat";
+import { expect } from "chai";
 
-describe('OnchainAssetOracle', function () {
-  it('deploys with admin and updater roles, creates and updates feeds', async function () {
-    const [deployer, updater, other] = await ethers.getSigners();
+describe("OnchainAssetOracle", function () {
+  it("should deploy with initial price and owner, allow owner to update", async function () {
+    const [owner, addr1] = await ethers.getSigners();
+    const initialPrice = 100;
 
-    const OA = await ethers.getContractFactory('OnchainAssetOracle');
-    const oracle = await OA.deploy(deployer.address);
+    const Oracle = await ethers.getContractFactory("OnchainAssetOracle", owner);
+    const oracle = await Oracle.deploy(initialPrice);
     await oracle.deployed();
 
-    // Transfer updater role to updater address
-    await oracle.grantRole(await oracle.UPDATER_ROLE(), updater.address);
+    // initial state
+    expect(await oracle.price()).to.equal(initialPrice);
+    expect(await oracle.owner()).to.equal(await owner.getAddress());
 
-    // Create a feed
-    await expect(oracle.connect(updater).createFeed('ETH/USD', 1800)).to.emit(oracle, 'FeedCreated').withArgs('ETH/USD', 1800, anyValue => true, updater.address);
+    // owner updates price
+    await oracle.updatePrice(200);
+    expect(await oracle.price()).to.equal(200);
+  });
 
-    // Update feed
-    await expect(oracle.connect(updater).updateFeed('ETH/USD', 1810)).to.emit(oracle, 'FeedUpdated').withArgs('ETH/USD', 1810, anyValue => true, updater.address);
+  it("should revert when non-owner tries to update price", async function () {
+    const [owner, nonOwner] = await ethers.getSigners();
+    const initialPrice = 50;
 
-    // Read feed
-    const [val, ts] = await oracle.getFeed('ETH/USD').then(r => [r[0], r[1]]);
-    expect(val).to.equal(1810);
-    expect(ts).to.be.above(0);
+    const Oracle = await ethers.getContractFactory("OnchainAssetOracle", owner);
+    const oracle = await Oracle.deploy(initialPrice);
+    await oracle.deployed();
 
-    // Unauthorized update should fail
-    await expect(oracle.connect(other).updateFeed('ETH/USD', 1820)).to.be.revertedWith('OA: caller is not updater');
+    // try non-owner update
+    const oracleAsNonOwner = oracle.connect(nonOwner);
+    await expect(oracleAsNonOwner.updatePrice(999)).to.be.revertedWith("OnchainAssetOracle: caller is not the owner");
+  });
+
+  it("should allow owner to transfer ownership", async function () {
+    const [owner, newOwner] = await ethers.getSigners();
+    const oracle = await (await ethers.getContractFactory("OnchainAssetOracle", owner)).deploy(10);
+    await oracle.deployed();
+
+    expect(await oracle.owner()).to.equal(await owner.getAddress());
+
+    await oracle.transferOwnership(await newOwner.getAddress());
+    expect(await oracle.owner()).to.equal(await newOwner.getAddress());
   });
 });
