@@ -1,22 +1,18 @@
-# Onchain Asset Oracle - Usage Guide
+# Onchain Asset Oracle usage
 
-This repository contains a minimal on-chain asset oracle implemented in Solidity with tests and deployment scripts managed by Hardhat.
+This repository contains a minimal on-chain oracle that exposes an asset price on-chain. The tests in `test/OnchainAssetOracle.test.ts` exercise core read/write flows.
 
-Highlights:
-- Read-only on-chain asset price retrieval via a simple Oracle interface
-- Local Hardhat tests to verify expected behavior without relying on external price feeds
-- Lightweight deployment script to deploy the oracle contract on a local network
+Usage outline:
 
-How to run locally:
-1. Install dependencies:
-   - npm install
-2. Compile contracts:
-   - npx hardhat compile
-3. Run tests:
-   - npx hardhat test
-4. Deploy to a local network:
-   - npx hardhat run scripts/deploy.ts --network localhost
+- Compile contracts: `npm run build` (or `npx hardhat compile`).
+- Run tests: `npm test`.
+- Deploy locally (Hardhat network): `npm run deploy:local` (defined in scripts/deploy.ts and configured in hardhat.config.ts).
+
+Key considerations:
+
+- Access control (who can write prices) is handled within the contract (see the Solidity source in `contracts/OnchainAssetOracle.sol`).
+- The oracle price is exposed via a public getter and can be consumed by off-chain systems.
 
 Notes:
-- This repository is designed to be extended. If you add more assets or need different price sources, keep the interface stable and update tests accordingly.
-- Avoid introducing external dependencies for tests to keep the suite fast and deterministic.
+
+- This repo is designed for small, incremental updates. If you plan to extend the oracle (e.g., add multiple assets, or allow multi-owner governance), consider introducing a mapping of asset identifiers to price data and a robust access-control layer.
